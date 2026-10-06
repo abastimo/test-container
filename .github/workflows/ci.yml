@@ -1,0 +1,48 @@
+name: Playwright container
+
+# Un solo job: instala, compila y corre Playwright dentro del runner de GitHub.
+# El contenedor se prueba aislado (home, navbar y navegacion); el microfront no participa.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Instalar Chromium
+        run: npm run test:install
+
+      - name: Playwright
+        run: npm run test:component
+        env:
+          CI: "true"
+
+      - name: Subir reporte
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
